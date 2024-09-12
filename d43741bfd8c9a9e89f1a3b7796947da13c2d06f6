@@ -16,6 +16,23 @@
       "message": "Used by this\nhttps://review.lineageos.org/c/LineageOS/android_device_virt_virtio-common/+/398465",
       "revId": "d43741bfd8c9a9e89f1a3b7796947da13c2d06f6",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "dc9f2659_bf3f9570",
+        "filename": "grub-core/commands/loadstring.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 52,
+      "author": {
+        "id": 17793
+      },
+      "writtenOn": "2024-09-12T14:22:50Z",
+      "side": 1,
+      "message": "good to have offset and size parameters as well",
+      "revId": "d43741bfd8c9a9e89f1a3b7796947da13c2d06f6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }
