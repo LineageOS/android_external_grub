@@ -23,15 +23,31 @@
 
 GRUB_MOD_LICENSE ("GPLv3+");
 
-#define MAX_STRING_LENGTH 128
+#define MAX_STRING_LENGTH 512
 
 static char loaded_string[MAX_STRING_LENGTH];
 
 static grub_err_t loadstring_command(grub_command_t cmd __attribute__ ((unused)), int argc, char **argv) {
     char *device_name;
+    int offset, size;
 
     if (argc < 2) {
-        return grub_error(GRUB_ERR_BAD_ARGUMENT, "Usage: loadstring <device> <variable>");
+        return grub_error(GRUB_ERR_BAD_ARGUMENT, "Usage: loadstring <device> <variable> [offset] [size]");
+    }
+
+    if (argc >= 3) {
+        offset = atoi(argv[2]);
+        if (!offset) {
+            return grub_error(GRUB_ERR_BAD_ARGUMENT, "Offset is invalid");
+        }
+    }
+
+    if (argc >= 4) {
+        size = atoi(argv[3]);
+        if (!size || size >= MAX_STRING_LENGTH) {
+            // Decrease by 1 because the last byte is ensured to be \0
+            return grub_error(GRUB_ERR_BAD_ARGUMENT, "Size is invalid, Max allowed is %d", MAX_STRING_LENGTH - 1);
+        }
     }
 
     device_name = grub_file_get_device_name(argv[0]);
@@ -49,7 +65,7 @@ static grub_err_t loadstring_command(grub_command_t cmd __attribute__ ((unused))
     grub_disk_t disk = device->disk;
 
     /* Read the string directly from the partition's starting sector */
-    grub_disk_read(disk, 0, 0, MAX_STRING_LENGTH, loaded_string);
+    grub_disk_read(disk, 0, offset, size, loaded_string);
 
     /* Close resources */
     grub_device_close(device);
@@ -68,7 +84,7 @@ static grub_command_t cmd;
 
 GRUB_MOD_INIT(loadstring)
 {
-    cmd = grub_register_command("loadstring", loadstring_command, "loadstring <device> <variable>", "Load string from partition");
+    cmd = grub_register_command("loadstring", loadstring_command, "loadstring <device> <variable> [offset] [size]", "Load string from partition");
 }
 
 GRUB_MOD_FINI(loadstring)
