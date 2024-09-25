@@ -48,6 +48,8 @@ static grub_err_t loadstring_command(grub_command_t cmd __attribute__ ((unused))
 
     grub_disk_t disk = device->disk;
 
+    grub_memset(&loaded_string, 0, MAX_STRING_LENGTH);
+
     /* Read the string directly from the partition's starting sector */
     grub_disk_read(disk, 0, 0, MAX_STRING_LENGTH, loaded_string);
 
