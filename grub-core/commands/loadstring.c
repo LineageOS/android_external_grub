@@ -38,7 +38,7 @@ static grub_err_t loadstring_command(grub_command_t cmd __attribute__ ((unused))
 
     if (argc >= 3) {
         offset = grub_strtoul(argv[2], 0, 0);
-        if (offset < 0) {
+        if (!offset) {
             return grub_error(GRUB_ERR_BAD_ARGUMENT, "Offset is invalid");
         }
     }
