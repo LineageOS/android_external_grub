@@ -557,6 +557,17 @@ main (int argc, char *argv[])
 
   grub_set_install_backup_ponr ();
 
+#ifdef __linux__
+  if (!access("prebuilts/bootmgr/grub/linux-x86/i386-pc/lib/grub/i386-pc/boot_hybrid.img", F_OK)) {
+    source_dirs[GRUB_INSTALL_PLATFORM_I386_PC] = xstrdup("prebuilts/bootmgr/grub/linux-x86/i386-pc/lib/grub/i386-pc/");
+    grub_install_copy_files(source_dirs[GRUB_INSTALL_PLATFORM_I386_PC], boot_grub, GRUB_INSTALL_PLATFORM_I386_PC);
+  }
+  if (!access("prebuilts/bootmgr/grub/linux-x86/i386-efi/lib/grub/i386-efi/kernel.img", F_OK)) {
+    source_dirs[GRUB_INSTALL_PLATFORM_I386_EFI] = xstrdup("prebuilts/bootmgr/grub/linux-x86/i386-pc/lib/grub/i386-efi/");
+    grub_install_copy_files(source_dirs[GRUB_INSTALL_PLATFORM_I386_EFI], boot_grub, GRUB_INSTALL_PLATFORM_I386_EFI);
+  }
+#endif
+
   if (system_area == SYS_AREA_AUTO || grub_install_source_directory)
     {
       if (source_dirs[GRUB_INSTALL_PLATFORM_I386_PC]
