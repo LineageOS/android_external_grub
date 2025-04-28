@@ -35,6 +35,13 @@ GRUB_MOD_LICENSE("GPLv3+");
 #define VENDOR_BOOT_ARGS_SIZE 2048
 #define VENDOR_BOOT_NAME_SIZE 16
 
+#define VENDOR_RAMDISK_TYPE_NONE 0
+#define VENDOR_RAMDISK_TYPE_PLATFORM 1
+#define VENDOR_RAMDISK_TYPE_RECOVERY 2
+#define VENDOR_RAMDISK_TYPE_DLKM 3
+#define VENDOR_RAMDISK_NAME_SIZE 32
+#define VENDOR_RAMDISK_TABLE_ENTRY_BOARD_ID_SIZE 16
+
 struct boot_img_hdr_v0 {
   grub_uint8_t magic[BOOT_MAGIC_SIZE];
 
@@ -133,6 +140,15 @@ struct vendor_boot_img_hdr_v4 {
   grub_uint32_t vendor_ramdisk_table_entry_num;
   grub_uint32_t vendor_ramdisk_table_entry_size;
   grub_uint32_t bootconfig_size;
+} __attribute__((packed));
+
+struct vendor_ramdisk_table_entry_v4 {
+  grub_uint32_t ramdisk_size;
+  grub_uint32_t ramdisk_offset;
+  grub_uint32_t ramdisk_type;
+  grub_uint8_t ramdisk_name[VENDOR_RAMDISK_NAME_SIZE];
+
+  grub_uint32_t board_id[VENDOR_RAMDISK_TABLE_ENTRY_BOARD_ID_SIZE];
 } __attribute__((packed));
 
 union vendor_boot_img_hdr_union {
