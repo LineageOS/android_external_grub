@@ -1,0 +1,16 @@
+BasedOnStyle: GNU
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+ColumnLimit: 79
+SpacesBeforeTrailingComments: 2
+SpaceBeforeParens: ControlStatements
+IndentCaseLabels: true
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+SortIncludes: false
+PointerAlignment: Left
