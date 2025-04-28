@@ -1395,6 +1395,11 @@ module = {
 };
 
 module = {
+  name = android_boot_fs;
+  common = fs/android_boot_fs.c;
+};
+
+module = {
   name = bfs;
   common = fs/bfs.c;
 };
