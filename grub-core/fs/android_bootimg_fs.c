@@ -35,6 +35,13 @@ GRUB_MOD_LICENSE("GPLv3+");
 #define VENDOR_BOOT_ARGS_SIZE 2048
 #define VENDOR_BOOT_NAME_SIZE 16
 
+#define VENDOR_RAMDISK_TYPE_NONE 0
+#define VENDOR_RAMDISK_TYPE_PLATFORM 1
+#define VENDOR_RAMDISK_TYPE_RECOVERY 2
+#define VENDOR_RAMDISK_TYPE_DLKM 3
+#define VENDOR_RAMDISK_NAME_SIZE 32
+#define VENDOR_RAMDISK_TABLE_ENTRY_BOARD_ID_SIZE 16
+
 struct boot_img_hdr_v0 {
   grub_uint8_t magic[BOOT_MAGIC_SIZE];
 
@@ -139,6 +146,21 @@ union vendor_boot_img_hdr_union {
   struct vendor_boot_img_hdr_v3 v3;
   struct vendor_boot_img_hdr_v4 v4;
 } __attribute__((packed));
+
+struct vendor_ramdisk_table_entry_v4 {
+  grub_uint32_t ramdisk_size;
+  grub_uint32_t ramdisk_offset;
+  grub_uint32_t ramdisk_type;
+  grub_uint8_t ramdisk_name[VENDOR_RAMDISK_NAME_SIZE];
+
+  grub_uint32_t board_id[VENDOR_RAMDISK_TABLE_ENTRY_BOARD_ID_SIZE];
+} __attribute__((packed));
+
+struct vendor_ramdisk_fragment_entry {
+  struct vendor_ramdisk_table_entry_v4 tbl_v4;
+  grub_uint64_t offset_from_disk;
+  struct vendor_ramdisk_fragment_entry* next;
+};
 
 enum android_boot_img_component {
   COMPONENT_NONE = 0,
@@ -309,6 +331,124 @@ get_vendor_boot_img_component_size(
       break;
   }
   return 0;
+}
+
+/* vendor ramdisk fragments handling*/
+static char*
+local_strappend(char* dest, const char* src) {
+  grub_size_t len_dest = dest ? grub_strlen(dest) : 0;
+  grub_size_t len_src = grub_strlen(src);
+
+  char* newbuf = grub_realloc(dest, len_dest + len_src + 1);
+  if (!newbuf)
+    return NULL;
+
+  grub_memcpy(newbuf + len_dest, src, len_src + 1);  // Copy + null terminator
+  return newbuf;
+}
+
+static char*
+get_vendor_ramdisk_fragment_filename(
+    struct vendor_ramdisk_table_entry_v4* tbl_v4) {
+  char* result = grub_strdup("vendor_ramdisk-");
+  local_strappend(result, (const char*)&tbl_v4->ramdisk_name);
+  local_strappend(result, "-");
+  switch (tbl_v4->ramdisk_type) {
+    case VENDOR_RAMDISK_TYPE_NONE:
+      local_strappend(result, "NONE");
+      break;
+    case VENDOR_RAMDISK_TYPE_PLATFORM:
+      local_strappend(result, "PLATFORM");
+      break;
+    case VENDOR_RAMDISK_TYPE_RECOVERY:
+      local_strappend(result, "RECOVERY");
+      break;
+    case VENDOR_RAMDISK_TYPE_DLKM:
+      local_strappend(result, "DLKM");
+      break;
+    default:
+      local_strappend(result, "UNKNOWN");
+      break;
+  }
+  local_strappend(result, ".img");
+  return result;
+}
+
+static struct vendor_ramdisk_fragment_entry*
+get_vendor_ramdisk_fragment_entries(grub_device_t device) {
+  union vendor_boot_img_hdr_union vhdr;
+  unsigned int i;
+  struct vendor_ramdisk_fragment_entry *result, *result_first, *result_prev;
+  grub_uint32_t page_size = 0;
+  grub_uint64_t offset = 0, section_offset = 0;
+
+  if (grub_disk_read(device->disk, 0, 0, sizeof(vhdr), &vhdr)) {
+    grub_error(GRUB_ERR_BAD_FS,
+               "Failed to load vendor_boot image header from disk");
+    return NULL;
+  }
+
+  if (vhdr.v3.header_version < 4) {
+    grub_error(GRUB_ERR_BAD_FS, "vendor_boot image header version < 4 does "
+                                "not support vendor ramdisk fragment");
+    return NULL;
+  }
+
+  if (!vhdr.v3.vendor_ramdisk_size
+      || !vhdr.v4.vendor_ramdisk_table_entry_num) {
+    grub_error(GRUB_ERR_BAD_FS, "No vendor ramdisk fragment");
+    return NULL;
+  }
+
+  page_size = vhdr.v3.page_size;
+  if (vhdr.v3.header_version == 3)
+    offset = ALIGN_UP(2112, page_size);
+  else
+    offset = ALIGN_UP(2128, page_size);
+  section_offset = offset;
+  offset += ALIGN_UP(vhdr.v3.vendor_ramdisk_size, page_size);
+  offset += ALIGN_UP(vhdr.v3.dtb_size, page_size);
+
+  for (i = 0; i < vhdr.v4.vendor_ramdisk_table_entry_num; i++) {
+    result_prev = result;
+    result = grub_zalloc(sizeof(*result));
+    if (!result) {
+      grub_error(GRUB_ERR_BAD_FS, "Unable to allocate memory");
+      break;
+    }
+
+    if (grub_disk_read(device->disk, 0, offset, sizeof(result->tbl_v4),
+                       &result->tbl_v4)) {
+      grub_error(GRUB_ERR_BAD_FS,
+                 "Failed to load vendor ramdisk table from disk");
+      break;
+    }
+
+    result->offset_from_disk = section_offset + result->tbl_v4.ramdisk_offset;
+
+    if (i == 0) {
+      result_first = result;
+    } else {
+      result_prev->next = result;
+    }
+
+    offset += vhdr.v4.vendor_ramdisk_table_entry_size;
+    if (offset >= vhdr.v4.vendor_ramdisk_table_size)
+      break;
+  }
+
+  return result_first;
+}
+
+static void
+free_vendor_ramdisk_fragment_entries(
+    struct vendor_ramdisk_fragment_entry* vrfe) {
+  struct vendor_ramdisk_fragment_entry* cur_vrfe;
+  while (vrfe) {
+    cur_vrfe = vrfe;
+    vrfe = vrfe->next;
+    grub_free(cur_vrfe);
+  }
 }
 
 /* Directory listing */
