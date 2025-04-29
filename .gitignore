@@ -283,3 +283,9 @@ widthspec.bin
 /xfs_test
 /xzcompress_test
 /zfs_test
+
+25_bli
+grub-core/gdb_helper.py
+grub-shell-luks-tester
+tmpwrk*/
+util/bash-completion.d/grub-*
