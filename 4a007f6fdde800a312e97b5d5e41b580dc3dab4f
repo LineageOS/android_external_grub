@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "6a03f7a8_3e91f240",
+        "filename": ".gitignore",
+        "patchSetId": 1
+      },
+      "lineNbr": 268,
+      "author": {
+        "id": 13028
+      },
+      "writtenOn": "2025-04-29T11:59:49Z",
+      "side": 1,
+      "message": "never had a look at this file before, but I\u0027d suggest to do all these _test ones like `/*_test`",
+      "revId": "4a007f6fdde800a312e97b5d5e41b580dc3dab4f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "59c46c3e_4bb31426",
+        "filename": ".gitignore",
+        "patchSetId": 1
+      },
+      "lineNbr": 291,
+      "author": {
+        "id": 13028
+      },
+      "writtenOn": "2025-04-29T11:59:49Z",
+      "side": 1,
+      "message": "if you remove the \"-\", this would also cover whats already in L#281",
+      "revId": "4a007f6fdde800a312e97b5d5e41b580dc3dab4f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}
