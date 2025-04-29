@@ -18,6 +18,24 @@
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "af834980_f96df55f",
+        "filename": ".gitignore",
+        "patchSetId": 1
+      },
+      "lineNbr": 268,
+      "author": {
+        "id": 32245
+      },
+      "writtenOn": "2025-04-29T17:21:39Z",
+      "side": 1,
+      "message": "those comes from upstream and I\u0027d prefer not to change",
+      "parentUuid": "6a03f7a8_3e91f240",
+      "revId": "4a007f6fdde800a312e97b5d5e41b580dc3dab4f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "59c46c3e_4bb31426",
@@ -31,6 +49,24 @@
       "writtenOn": "2025-04-29T11:59:49Z",
       "side": 1,
       "message": "if you remove the \"-\", this would also cover whats already in L#281",
+      "revId": "4a007f6fdde800a312e97b5d5e41b580dc3dab4f",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "47150caa_0726a788",
+        "filename": ".gitignore",
+        "patchSetId": 1
+      },
+      "lineNbr": 291,
+      "author": {
+        "id": 32245
+      },
+      "writtenOn": "2025-04-29T17:21:39Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "59c46c3e_4bb31426",
       "revId": "4a007f6fdde800a312e97b5d5e41b580dc3dab4f",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
