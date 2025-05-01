@@ -42,6 +42,12 @@ GRUB_MOD_LICENSE("GPLv3+");
 #define VENDOR_RAMDISK_NAME_SIZE 32
 #define VENDOR_RAMDISK_TABLE_ENTRY_BOARD_ID_SIZE 16
 
+#define BOOTCONFIG_MAGIC "#BOOTCONFIG\n"
+#define BOOTCONFIG_MAGIC_LEN 12
+#define BOOTCONFIG_ALIGN_SHIFT 2
+#define BOOTCONFIG_ALIGN (1 << BOOTCONFIG_ALIGN_SHIFT)
+#define BOOTCONFIG_ALIGN_MASK (BOOTCONFIG_ALIGN - 1)
+
 struct boot_img_hdr_v0 {
   grub_uint8_t magic[BOOT_MAGIC_SIZE];
 
@@ -162,6 +168,12 @@ struct vendor_ramdisk_fragment_entry {
   struct vendor_ramdisk_fragment_entry* next;
 };
 
+struct bootconfig_tail {
+  grub_uint32_t size;
+  grub_uint32_t csum;
+  char magic[BOOTCONFIG_MAGIC_LEN];
+} __attribute__((packed));
+
 enum android_boot_img_component {
   COMPONENT_NONE = 0,
   COMPONENT_KERNEL,
@@ -198,7 +210,7 @@ static const char*
     = {
         [VENDOR_COMPONENT_VENDOR_RAMDISK] = "vendor_ramdisk.img",
         [VENDOR_COMPONENT_DTB] = "dtb",
-        [VENDOR_COMPONENT_BOOTCONFIG] = "bootconfig.txt",
+        [VENDOR_COMPONENT_BOOTCONFIG] = "bootconfig.bin",
         [VENDOR_COMPONENT_INFO] = "vendor_boot-info.cfg",
         [VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO]
         = "vendor_boot-ramdisk-fragment-info.cfg",
@@ -322,6 +334,17 @@ get_boot_img_component_size(union boot_img_hdr_union* hdr,
   return 0;
 }
 
+static inline grub_uint32_t
+xbc_calc_checksum(void* data, grub_uint32_t size) {
+  unsigned char* p = data;
+  grub_uint32_t ret = 0;
+
+  while (size--)
+    ret += *p++;
+
+  return ret;
+}
+
 static grub_ssize_t
 get_vendor_boot_img_component_size(
     union vendor_boot_img_hdr_union* vhdr,
@@ -338,10 +361,6 @@ get_vendor_boot_img_component_size(
       if (ver == 3)
         return vhdr->v3.dtb_size;
       break;
-    case VENDOR_COMPONENT_BOOTCONFIG:
-      if (ver == 4)
-        return vhdr->v4.bootconfig_size;
-      break;
     case VENDOR_COMPONENT_INFO:
       tmp_charp = get_info_content_vendor_boot(vhdr);
       if (tmp_charp) {
@@ -350,6 +369,9 @@ get_vendor_boot_img_component_size(
         return tmp_size;
       }
       break;
+    case VENDOR_COMPONENT_BOOTCONFIG:
+      // handled separately
+      [[fallthrough]];
     case VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO:
       // handled separately
       [[fallthrough]];
@@ -359,6 +381,74 @@ get_vendor_boot_img_component_size(
       break;
   }
   return 0;
+}
+
+static char*
+get_vendor_bootconfig_content(grub_device_t device, grub_ssize_t* out_size) {
+  char magic[BOOTCONFIG_MAGIC_LEN] = BOOTCONFIG_MAGIC;
+  char* result;
+  struct bootconfig_tail* result_tail;
+  union vendor_boot_img_hdr_union vhdr;
+  grub_ssize_t bootconfig_size, content_size, pad, total_size;
+  grub_uint32_t page_size = 0;
+  grub_uint64_t offset = 0;
+
+  *out_size = 0;
+
+  if (grub_disk_read(device->disk, 0, 0, sizeof(vhdr), &vhdr)) {
+    grub_error(GRUB_ERR_BAD_FS,
+               "Failed to load vendor_boot image header from disk");
+    return NULL;
+  }
+
+  if (vhdr.v3.header_version != 4) {
+    grub_error(GRUB_ERR_BAD_FS, "vendor_boot image header version != 4 does "
+                                "not support bootconfig");
+    return NULL;
+  }
+
+  if (!vhdr.v4.bootconfig_size) {
+    grub_error(GRUB_ERR_BAD_FS, "No bootconfig");
+    return NULL;
+  }
+
+  bootconfig_size = vhdr.v4.bootconfig_size + 1;
+  total_size = bootconfig_size + sizeof(struct bootconfig_tail);
+  pad = ((total_size + BOOTCONFIG_ALIGN - 1) & (~BOOTCONFIG_ALIGN_MASK))
+        - total_size;
+  content_size = total_size + pad;
+
+  result = grub_zalloc(content_size + 1);
+  if (!result) {
+    grub_error(GRUB_ERR_BAD_FS,
+               "Failed to allocate memory for bootconfig content");
+    return NULL;
+  }
+
+  *out_size = content_size;
+
+  page_size = vhdr.v3.page_size;
+  offset = ALIGN_UP(2128, page_size);
+  offset += ALIGN_UP(vhdr.v3.vendor_ramdisk_size, page_size);
+  offset += ALIGN_UP(vhdr.v3.dtb_size, page_size);
+  offset += ALIGN_UP(vhdr.v4.vendor_ramdisk_table_size, page_size);
+
+  if (grub_disk_read(device->disk, 0, offset, vhdr.v4.bootconfig_size,
+                     result)) {
+    grub_error(GRUB_ERR_BAD_FS, "Failed to load bootconfig from disk");
+    goto fail;
+  }
+
+  result_tail = (struct bootconfig_tail*)(result + bootconfig_size + pad);
+  result_tail->size = bootconfig_size;
+  result_tail->csum = xbc_calc_checksum(result, result_tail->size);
+  grub_memcpy(&result_tail->magic, magic, BOOTCONFIG_MAGIC_LEN);
+
+  return result;
+
+fail:
+  grub_free(result);
+  return NULL;
 }
 
 /* vendor ramdisk fragments handling*/
@@ -569,7 +659,10 @@ android_bootimg_dir(grub_device_t device,
       return grub_errno;
     }
     for (i = 1; i < VENDOR_COMPONENT_COUNT; i++) {
-      if (i == VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO) {
+      if (i == VENDOR_COMPONENT_BOOTCONFIG) {
+        tmp_size = vhdr.v4.bootconfig_size;  // not equal to the real size but
+                                             // doesn't matter here
+      } else if (i == VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO) {
         tmp_charp = get_vendor_ramdisk_fragment_info_content(device);
         if (tmp_charp) {
           tmp_size = grub_strlen(tmp_charp);
@@ -646,7 +739,15 @@ android_bootimg_open(grub_file_t file, const char* path) {
     for (i = 1; i < VENDOR_COMPONENT_COUNT; i++) {
       if (!grub_strcmp(path + 1,
                        android_vendor_boot_img_component_filename[i])) {
-        if (i == VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO) {
+        if (i == VENDOR_COMPONENT_BOOTCONFIG) {
+          tmp_charp
+              = get_vendor_bootconfig_content(file->device, &component_size);
+          if (tmp_charp) {
+            data->content = tmp_charp;
+          } else {
+            component_size = 0;
+          }
+        } else if (i == VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO) {
           tmp_charp = get_vendor_ramdisk_fragment_info_content(file->device);
           if (tmp_charp) {
             component_size = grub_strlen(tmp_charp);
@@ -712,6 +813,7 @@ android_bootimg_read(grub_file_t file, char* buf, grub_size_t len) {
   grub_ssize_t ret;
 
   if (data->component == COMPONENT_INFO
+      || data->vendor_component == VENDOR_COMPONENT_BOOTCONFIG
       || data->vendor_component == VENDOR_COMPONENT_INFO
       || data->vendor_component
              == VENDOR_COMPONENT_VENDOR_RAMDISK_FRAGMENT_INFO) {
@@ -819,8 +921,6 @@ android_bootimg_read(grub_file_t file, char* buf, grub_size_t len) {
       offset += ALIGN_UP(vhdr.v4.vendor_ramdisk_table_size, page_size);
 
       // bootconfig
-      if (data->vendor_component == VENDOR_COMPONENT_BOOTCONFIG)
-        goto read;
       offset += ALIGN_UP(vhdr.v4.bootconfig_size, page_size);
     }
   } else {
