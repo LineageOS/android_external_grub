@@ -1016,11 +1016,6 @@ module = {
 };
 
 module = {
-  name = loadstring;
-  common = commands/loadstring.c;
-};
-
-module = {
   name = ls;
   common = commands/ls.c;
 };
