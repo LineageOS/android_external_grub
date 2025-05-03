@@ -767,7 +767,7 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 {
   grub_size_t size = 0;
   grub_err_t err;
-  struct grub_linux_initrd_context initrd_ctx = { 0, 0, 0 };
+  struct grub_linux_initrd_context initrd_ctx = { 0, 0, 0, false };
   grub_relocator_chunk_t ch;
 
   if (argc == 0)

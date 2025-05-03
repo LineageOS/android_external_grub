@@ -533,7 +533,7 @@ static grub_err_t
 grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 		 int argc, char *argv[])
 {
-  struct grub_linux_initrd_context initrd_ctx = { 0, 0, 0 };
+  struct grub_linux_initrd_context initrd_ctx = { 0, 0, 0, false };
 
   if (argc == 0)
     {

@@ -48,7 +48,7 @@ static grub_uint32_t cmdline_size;
 static grub_addr_t initrd_start;
 static grub_addr_t initrd_end;
 
-static struct grub_linux_initrd_context initrd_ctx = {0, 0, 0};
+static struct grub_linux_initrd_context initrd_ctx = {0, 0, 0, false};
 static grub_efi_handle_t initrd_lf2_handle = NULL;
 static bool initrd_use_loadfile2 = false;
 

@@ -169,6 +169,7 @@ grub_initrd_init (int argc, char *argv[],
   int i;
   int newc = 0;
   struct dir *root = 0;
+  grub_size_t tmp_size;
 
   initrd_ctx->nfiles = 0;
   initrd_ctx->components = 0;
@@ -183,7 +184,14 @@ grub_initrd_init (int argc, char *argv[],
     {
       const char *fname = argv[i];
 
-      initrd_ctx->size = ALIGN_UP (initrd_ctx->size, 4);
+      if (grub_memcmp(argv[i], "--no-align-up", 14) == 0) {
+        initrd_ctx->no_align_up = true;
+        continue;
+      }
+
+      if (!initrd_ctx->no_align_up) {
+        initrd_ctx->size = ALIGN_UP (initrd_ctx->size, 4);
+      }
 
       if (grub_memcmp (argv[i], "newc:", 5) == 0)
 	{
@@ -205,8 +213,12 @@ grub_initrd_init (int argc, char *argv[],
 		  return grub_errno;
 		}
 	      name_len = grub_strlen (initrd_ctx->components[i].newc_name) + 1;
+	      tmp_size = sizeof (struct newc_head) + name_len;
+	      if (!initrd_ctx->no_align_up) {
+	        tmp_size = ALIGN_UP (tmp_size, 4);
+	      }
 	      if (grub_add (initrd_ctx->size,
-			    ALIGN_UP (sizeof (struct newc_head) + name_len, 4),
+			    tmp_size,
 			    &initrd_ctx->size) ||
 		  grub_add (initrd_ctx->size, dir_size, &initrd_ctx->size))
 		goto overflow;
@@ -216,9 +228,12 @@ grub_initrd_init (int argc, char *argv[],
 	}
       else if (newc)
 	{
+	  tmp_size = sizeof (struct newc_head) + sizeof ("TRAILER!!!");
+	  if (!initrd_ctx->no_align_up) {
+	    tmp_size = ALIGN_UP(tmp_size, 4);
+	  }
 	  if (grub_add (initrd_ctx->size,
-			ALIGN_UP (sizeof (struct newc_head)
-				  + sizeof ("TRAILER!!!"), 4),
+			tmp_size,
 			&initrd_ctx->size))
 	    goto overflow;
 	  free_dir (root);
@@ -243,10 +258,13 @@ grub_initrd_init (int argc, char *argv[],
 
   if (newc)
     {
-      initrd_ctx->size = ALIGN_UP (initrd_ctx->size, 4);
+      tmp_size = sizeof (struct newc_head) + sizeof ("TRAILER!!!");
+      if (!initrd_ctx->no_align_up) {
+        initrd_ctx->size = ALIGN_UP (initrd_ctx->size, 4);
+        tmp_size = ALIGN_UP(tmp_size, 4);
+      }
       if (grub_add (initrd_ctx->size,
-		    ALIGN_UP (sizeof (struct newc_head)
-			      + sizeof ("TRAILER!!!"), 4),
+		    tmp_size,
 		    &initrd_ctx->size))
 	goto overflow;
       free_dir (root);
@@ -294,8 +312,10 @@ grub_initrd_load (struct grub_linux_initrd_context *initrd_ctx,
 
   for (i = 0; i < initrd_ctx->nfiles; i++)
     {
-      grub_memset (ptr, 0, ALIGN_UP_OVERHEAD (cursize, 4));
-      ptr += ALIGN_UP_OVERHEAD (cursize, 4);
+      if (!initrd_ctx->no_align_up) {
+        grub_memset (ptr, 0, ALIGN_UP_OVERHEAD (cursize, 4));
+        ptr += ALIGN_UP_OVERHEAD (cursize, 4);
+      }
 
       if (initrd_ctx->components[i].newc_name)
 	{
@@ -338,8 +358,10 @@ grub_initrd_load (struct grub_linux_initrd_context *initrd_ctx,
     }
   if (newc)
     {
-      grub_memset (ptr, 0, ALIGN_UP_OVERHEAD (cursize, 4));
-      ptr += ALIGN_UP_OVERHEAD (cursize, 4);
+      if (!initrd_ctx->no_align_up) {
+        grub_memset (ptr, 0, ALIGN_UP_OVERHEAD (cursize, 4));
+        ptr += ALIGN_UP_OVERHEAD (cursize, 4);
+      }
       ptr = make_header (ptr, "TRAILER!!!", sizeof ("TRAILER!!!"), 0, 0);
     }
   free_dir (root);

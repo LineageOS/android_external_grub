@@ -7,6 +7,7 @@ struct grub_linux_initrd_context
   int nfiles;
   struct grub_linux_initrd_component *components;
   grub_size_t size;
+  bool no_align_up;
 };
 
 grub_err_t
