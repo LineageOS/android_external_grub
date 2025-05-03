@@ -585,8 +585,15 @@ fail:
   return grub_errno;
 }
 
+static grub_err_t
+grub_cmd_initrd_no_align_up (
+    grub_command_t cmd __attribute__((unused)),
+    int argc, char *argv[])
+{
+  return grub_initrd_no_align_up(argc, argv);
+}
 
-static grub_command_t cmd_linux, cmd_initrd;
+static grub_command_t cmd_linux, cmd_initrd, cmd_initrd_no_align_up;
 
 GRUB_MOD_INIT (linux)
 {
@@ -594,6 +601,9 @@ GRUB_MOD_INIT (linux)
 				     N_("Load Linux."));
   cmd_initrd = grub_register_command ("initrd", grub_cmd_initrd, 0,
 				      N_("Load initrd."));
+  cmd_initrd_no_align_up = grub_register_command ("initrd_no_align_up",
+    grub_cmd_initrd_no_align_up, 0,
+    N_("Do not ALIGN_UP initrd."));
   my_mod = mod;
 }
 
@@ -601,4 +611,5 @@ GRUB_MOD_FINI (linux)
 {
   grub_unregister_command (cmd_linux);
   grub_unregister_command (cmd_initrd);
+  grub_unregister_command (cmd_initrd_no_align_up);
 }

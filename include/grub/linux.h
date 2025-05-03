@@ -9,6 +9,8 @@ struct grub_linux_initrd_context
   grub_size_t size;
 };
 
+grub_err_t grub_initrd_no_align_up(int argc, char *argv[]);
+
 grub_err_t
 grub_initrd_init (int argc, char *argv[],
 		  struct grub_linux_initrd_context *ctx);
