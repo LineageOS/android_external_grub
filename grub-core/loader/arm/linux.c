@@ -486,7 +486,15 @@ grub_cmd_devicetree (grub_command_t cmd __attribute__ ((unused)),
   return grub_errno;
 }
 
-static grub_command_t cmd_linux, cmd_initrd, cmd_devicetree;
+static grub_err_t
+grub_cmd_initrd_no_align_up (
+    grub_command_t cmd __attribute__((unused)),
+    int argc, char *argv[])
+{
+  return grub_initrd_no_align_up(argc, argv);
+}
+
+static grub_command_t cmd_linux, cmd_initrd, cmd_devicetree, cmd_initrd_no_align_up;
 
 GRUB_MOD_INIT (linux)
 {
@@ -497,6 +505,9 @@ GRUB_MOD_INIT (linux)
   cmd_devicetree = grub_register_command_lockdown ("devicetree", grub_cmd_devicetree,
 						   /* TRANSLATORS: DTB stands for device tree blob. */
 						   0, N_("Load DTB file."));
+  cmd_initrd_no_align_up = grub_register_command ("initrd_no_align_up",
+    grub_cmd_initrd_no_align_up, 0,
+    N_("Do not ALIGN_UP initrd."));
   my_mod = mod;
   current_fdt = (const void *) grub_arm_firmware_get_boot_data ();
   machine_type = grub_arm_firmware_get_machine_type ();
@@ -507,4 +518,5 @@ GRUB_MOD_FINI (linux)
   grub_unregister_command (cmd_linux);
   grub_unregister_command (cmd_initrd);
   grub_unregister_command (cmd_devicetree);
+  grub_unregister_command (cmd_initrd_no_align_up);
 }
